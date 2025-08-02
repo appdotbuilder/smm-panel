@@ -1,20 +1,33 @@
 
+import { db } from '../db';
+import { transactionsTable } from '../db/schema';
 import { type CreateTransactionInput, type Transaction } from '../schema';
 
-export async function createTransaction(input: CreateTransactionInput): Promise<Transaction> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is creating a new transaction record for deposits,
-    // order payments, or refunds. Should handle crypto payment processing.
-    return Promise.resolve({
-        id: 0, // Placeholder ID
+export const createTransaction = async (input: CreateTransactionInput): Promise<Transaction> => {
+  try {
+    // Insert transaction record
+    const result = await db.insert(transactionsTable)
+      .values({
         user_id: input.user_id,
         type: input.type,
-        amount: input.amount,
+        amount: input.amount.toString(), // Convert number to string for numeric column
         description: input.description,
         crypto_currency: input.crypto_currency || null,
         crypto_address: input.crypto_address || null,
         crypto_tx_hash: input.crypto_tx_hash || null,
-        status: 'pending',
-        created_at: new Date()
-    } as Transaction);
-}
+        status: 'pending' // Default status
+      })
+      .returning()
+      .execute();
+
+    // Convert numeric fields back to numbers before returning
+    const transaction = result[0];
+    return {
+      ...transaction,
+      amount: parseFloat(transaction.amount) // Convert string back to number
+    };
+  } catch (error) {
+    console.error('Transaction creation failed:', error);
+    throw error;
+  }
+};

@@ -1,11 +1,37 @@
 
+import { db } from '../db';
+import { usersTable } from '../db/schema';
 import { type GenerateApiKeyInput } from '../schema';
+import { eq } from 'drizzle-orm';
+import { randomBytes } from 'crypto';
 
 export async function generateApiKey(input: GenerateApiKeyInput): Promise<{ api_key: string }> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is generating a unique API key for the user
-    // and storing it in the database for programmatic access.
-    return Promise.resolve({
-        api_key: 'placeholder_api_key_12345'
-    });
+  try {
+    // Verify user exists
+    const existingUser = await db.select()
+      .from(usersTable)
+      .where(eq(usersTable.id, input.user_id))
+      .execute();
+
+    if (existingUser.length === 0) {
+      throw new Error('User not found');
+    }
+
+    // Generate a secure random API key
+    const apiKey = randomBytes(32).toString('hex');
+
+    // Update user with new API key
+    await db.update(usersTable)
+      .set({ 
+        api_key: apiKey,
+        updated_at: new Date()
+      })
+      .where(eq(usersTable.id, input.user_id))
+      .execute();
+
+    return { api_key: apiKey };
+  } catch (error) {
+    console.error('API key generation failed:', error);
+    throw error;
+  }
 }
